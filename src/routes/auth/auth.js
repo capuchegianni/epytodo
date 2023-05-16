@@ -18,34 +18,61 @@ module.exports = function(app) {
         const checkQuery = `SELECT * FROM user WHERE email = ?`;
         db.query(checkQuery, [email], (checkErr, checkResult) => {
             if (checkErr) {
-                res.status(500).json({ msg: 'Internal server error' });
+                res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
                 return;
             }
             if (checkResult.length > 0) {
-                res.status(400).json({ msg: 'Account already exists' });
+                res.status(400).send(JSON.stringify({ msg: 'Account already exists' }, null, 2) + '\n');
                 return;
             }
             const saltRounds = 10;
             bcrypt.hash(password, saltRounds, (hashErr, hashedPassword) => {
                 if (hashErr) {
-                    res.status(500).json({ msg: 'Internal server error' });
+                    res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
                     return;
                 }
                 const insertQuery = `INSERT INTO user (email, password, name, firstname) VALUES (?, ?, ?, ?)`;
                 db.query(insertQuery, [email, hashedPassword, name, firstname], (insertErr) => {
                     if (insertErr) {
-                        res.status(500).json({ msg: 'Internal server error' });
+                        res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
                         return;
                     }
-                    const payload = { email: req.email };
-                    const token = jwt.sign(payload, process.env.SECRET);
-                    res.status(200).json({ token });
+                    var token = jwt.sign(req.body.email, process.env.SECRET)
+                    res.type('application/json')
+                    res.set('token', token)
+                    res.status(200).send(JSON.stringify({ token: token }, null, 2) + '\n');
                 });
             });
         });
     });
 
     app.post('/login', (req, res) => {
-        res.send('Login Page!\n');
+        const { email, password } = req.body;
+        const checkQuery = `SELECT * FROM user WHERE email = ?`;
+        db.query(checkQuery, [email], (checkErr, checkResult) => {
+            if (checkErr) {
+                res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
+                return;
+            }
+            if (checkResult.length === 0) {
+                res.status(400).send(JSON.stringify({ msg: 'Account does not exist' }, null, 2) + '\n');
+                return;
+            }
+            const hashedPassword = checkResult[0].password;
+            bcrypt.compare(password, hashedPassword, (compareErr, compareResult) => {
+                if (compareErr) {
+                    res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
+                    return;
+                }
+                if (!compareResult) {
+                    res.status(400).send(JSON.stringify({ msg: 'Invalid Credentials' }, null, 2) + '\n');
+                    return;
+                }
+                var token = jwt.sign(req.body.email, process.env.SECRET)
+                res.type('application/json')
+                res.set('token', token)
+                res.status(200).send(JSON.stringify({ token: token }, null, 2) + '\n');
+            });
+        });
     });
 };

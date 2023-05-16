@@ -2,7 +2,7 @@ const express = require('express')
 require('dotenv').config( {path: '../.env'} );
 const app = express()
 const port = process.env.PORT || 3000;
-const db = require('./config/db.js');
+require('./config/db.js');
 
 app.use(express.json());
 require('./routes/auth/auth.js')(app);

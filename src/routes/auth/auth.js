@@ -3,6 +3,7 @@ const app = express()
 const mysql = require('mysql2');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const db = mysql.createConnection({
     host: process.env.MYSQL_HOST,
@@ -24,16 +25,22 @@ module.exports = function(app) {
                 res.status(400).json({ msg: 'Account already exists' });
                 return;
             }
-            const insertQuery = `INSERT INTO user (email, password, name, firstname) VALUES (?, ?, ?, ?)`;
-            db.query(insertQuery, [email, password, name, firstname], (insertErr) => {
-                if (insertErr) {
+            const saltRounds = 10;
+            bcrypt.hash(password, saltRounds, (hashErr, hashedPassword) => {
+                if (hashErr) {
                     res.status(500).json({ msg: 'Internal server error' });
                     return;
                 }
-                const payload = { id: req.id, email: req.email };
-                const secretKey = 'epytodo';
-                const token = jwt.sign(payload, secretKey);
-                res.status(200).json({ token });
+                const insertQuery = `INSERT INTO user (email, password, name, firstname) VALUES (?, ?, ?, ?)`;
+                db.query(insertQuery, [email, hashedPassword, name, firstname], (insertErr) => {
+                    if (insertErr) {
+                        res.status(500).json({ msg: 'Internal server error' });
+                        return;
+                    }
+                    const payload = { email: req.email };
+                    const token = jwt.sign(payload, process.env.SECRET);
+                    res.status(200).json({ token });
+                });
             });
         });
     });

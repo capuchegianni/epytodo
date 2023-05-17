@@ -8,12 +8,12 @@ module.exports = (req, res, next) => {
 
         jwt.verify(token, process.env.SECRET, (err, user) => {
             if (err) {
-                return res.status(498).json({"msg":"Token is not valid"});
+                res.status(401).send(JSON.stringify({ msg:"Token is not valid" }, null, 2) + '\n');
             }
             req.user = user["id"]
             next();
         });
     } else {
-        res.status(498).json({"msg":"No token , authorization denied"});
+        res.status(401).send(JSON.stringify({ msg:"No token , authorization denied" }, null, 2) + '\n');
     }
 };

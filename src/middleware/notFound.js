@@ -1,5 +1,5 @@
 const notFoundHandler = (res) => {
-    res.status(400).json({ 'msg': 'Not Found' });
+    res.status(401).send(JSON.stringify({ msg: 'Not Found' }, null, 2) + '\n');
 };
 
 module.exports = notFoundHandler;

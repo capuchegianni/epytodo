@@ -24,6 +24,32 @@ function TodoIdFromToken(authHeader, res) {
             db.query(query, [userEmail], (err, result) => {
                 if (err || result.length === 0) {
                     res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
+                    return;
+                } else {
+                    const todoIds = result.map((row) => row.todo_id);
+                    resolve(todoIds);
+                }
+            });
+        } catch (err) {
+            res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
+        }
+    });
+}
+
+function UserIdFromToken(authHeader, res) {
+    if (!authHeader) {
+        res.status(401).send(JSON.stringify({ msg: 'No token, authorization denied' }, null, 2) + '\n');
+        return;
+    }
+    return new Promise((resolve) => {
+        try {
+            const token = authHeader.split(' ')[1];
+            jwt.verify(token, process.env.SECRET);
+            const userEmail = jwt.decode(token, process.env.SECRET);
+            const query = `SELECT id FROM user WHERE email = ?`;
+            db.query(query, [userEmail], (err, result) => {
+                if (err || result.length === 0) {
+                    res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
                 } else {
                     resolve(result[0].id);
                 }
@@ -69,31 +95,44 @@ module.exports = function(app) {
         if (!todoId) {
             return;
         }
-        const query = `SELECT * FROM todo WHERE id = ?`;
-        db.query(query, [req.params.data, req.params.data], (err, result) => {
+        const userId = await UserIdFromToken(req.headers.authorization, res);
+        if (!userId) {
+            return;
+        }
+        const query = `SELECT id FROM todo WHERE user_id = ?`;
+        db.query(query, [userId], (err, result) => {
             if (err || result.length === 0) {
                 res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
-            } else {
-                if (result[0].id !== todoId) {
-                    res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
-                    return;
-                }
-                const formattedResult = result.map((todo) => {
+                return;
+            }
+            if (!result.some(row => row.id === parseInt(req.params.id))) {
+                res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
+                return;
+            }
+            const query = `SELECT * FROM todo WHERE id = ?`;
+            db.query(query, [req.params.id], (err, result) => {
+                if (err || result.length === 0) {
+                    res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
+                } else {
+                    const todo = result[0];
                     const createdAt = new Date(todo.created_at);
                     createdAt.setHours(createdAt.getHours() + 2);
                     const formattedCreatedAt = createdAt.toISOString().replace('T', ' ').slice(0, 19);
-                    return {
+                    const createdDt = new Date(todo.due_time);
+                    createdDt.setHours(createdDt.getHours() + 2);
+                    const formattedCreatedDt = createdDt.toISOString().replace('T', ' ').slice(0, 19);
+                    const formattedTodo = {
                         id: todo.id,
-                        title: todo.title,
-                        description: todo.description,
-                        createdAt: formattedCreatedAt,
-                        due_time: todo.due_time,
-                        user_id: todo.user_id,
-                        status: todo.status
+                            title: todo.title,
+                            description: todo.description,
+                            createdAt: formattedCreatedAt,
+                            due_time: formattedCreatedDt,
+                            user_id: todo.user_id,
+                            status: todo.status
                     };
-                });
-                res.status(200).send(JSON.stringify(formattedResult, null, 2) + '\n');
-            }
+                    res.status(200).send(JSON.stringify(formattedTodo, null, 2) + '\n');
+                }
+            });
         });
     });
 
@@ -101,8 +140,57 @@ module.exports = function(app) {
         res.send('Create a todo\n');
     });
 
-    app.put('/todos/:id', (req, res) => {
-        res.send('Edit a todo\n');
+    app.put('/todos/:id', async (req, res) => {
+        const { title, description, due_time, user_id, status } = req.body;
+        const todoId = await TodoIdFromToken(req.headers.authorization, res);
+        if (!todoId) {
+            return;
+        }
+        const userId = await UserIdFromToken(req.headers.authorization, res);
+        if (!userId) {
+            return;
+        }
+        const query = `SELECT id FROM todo WHERE user_id = ?`;
+        db.query(query, [userId], (err, result) => {
+            if (err || result.length === 0) {
+                res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
+                return;
+            }
+            if (!result.some(row => row.id === parseInt(req.params.id))) {
+                res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
+                return;
+            }
+            const query = `UPDATE todo SET title = ?, description = ?, due_time = ?, user_id = ?, status = ? WHERE id = ?`;
+            db.query(query, [title, description, due_time, user_id, status, req.params.id], (err) => {
+                if (err) {
+                    if (err.code === 'ER_TRUNCATED_WRONG_VALUE') {
+                        res.status(400).send(JSON.stringify({ msg: 'Bad parameter' }, null, 2) + '\n');
+                        return;
+                    }
+                    res.status(400).send(JSON.stringify({ msg: 'Internal sever error' }, null, 2) + '\n');
+                    return;
+                }
+                db.query(`SELECT * FROM todo WHERE id = ?`, [req.params.id], (err, result) => {
+                    const todo = result[0];
+                    const createdAt = new Date(todo.created_at);
+                    createdAt.setHours(createdAt.getHours() + 2);
+                    const formattedCreatedAt = createdAt.toISOString().replace('T', ' ').slice(0, 19);
+                    const createdDt = new Date(todo.due_time);
+                    createdDt.setHours(createdDt.getHours() + 2);
+                    const formattedCreatedDt = createdDt.toISOString().replace('T', ' ').slice(0, 19);
+                    const formattedTodo = {
+                        id: todo.id,
+                            title: todo.title,
+                            description: todo.description,
+                            createdAt: formattedCreatedAt,
+                            due_time: formattedCreatedDt,
+                            user_id: todo.user_id,
+                            status: todo.status
+                    };
+                    res.status(200).send(JSON.stringify(formattedTodo, null, 2) + '\n');
+                });
+            });
+        });
     });
 
     app.delete('/todos/:id', async (req, res) => {
@@ -110,13 +198,23 @@ module.exports = function(app) {
         if (!todosId) {
             return;
         }
-        if (userId !== parseInt(req.params.id)) {
-            res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
+        const userId = await UserIdFromToken(req.headers.authorization, res);
+        if (!userId) {
             return;
         }
-        const query = `DELETE FROM todo WHERE id = ?`;
-        db.query(query, [todosId], () => {
-            res.status(200).send(JSON.stringify({ msg: `Successfully deleted record number : ${todosId}` }, null, 2) + '\n');
+        const query = `SELECT id FROM todo WHERE user_id = ?`;
+        db.query(query, [userId], (err, result) => {
+            if (err || result.length === 0) {
+                res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
+            }
+            if (!result.some(row => row.id === parseInt(req.params.id))) {
+                res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
+                return;
+            }
+            const query = `DELETE FROM todo WHERE id = ?`;
+            db.query(query, [req.params.id], () => {
+                res.status(200).send(JSON.stringify({ msg: `Successfully deleted record number : ${req.params.id}` }, null, 2) + '\n');
+            });
         });
     });
 };

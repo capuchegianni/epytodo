@@ -11,7 +11,7 @@ const db = mysql.createConnection({
     password: process.env.MYSQL_ROOT_PASSWORD
 });
 
-function idFromToken(authHeader, res) {
+function UserIdFromToken(authHeader, res) {
     if (!authHeader) {
         res.status(401).send(JSON.stringify({ msg: 'No token, authorization denied' }, null, 2) + '\n');
         return;
@@ -37,7 +37,7 @@ function idFromToken(authHeader, res) {
 
 module.exports = function(app) {
     app.get('/user', async (req, res) => {
-        const userId = await idFromToken(req.headers.authorization, res);
+        const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
         }
@@ -65,7 +65,7 @@ module.exports = function(app) {
     });
 
     app.get('/user/todos', async (req, res) => {
-        const userId = await idFromToken(req.headers.authorization, res);
+        const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
         }
@@ -94,7 +94,7 @@ module.exports = function(app) {
     });
 
     app.get('/user/:data', async (req, res) => {
-        const userId = await idFromToken(req.headers.authorization, res);
+        const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
         }
@@ -126,7 +126,7 @@ module.exports = function(app) {
 
     app.put('/user/:id', async (req, res) => {
         const { email, password, firstname, name } = req.body;
-        const userId = await idFromToken(req.headers.authorization, res);
+        const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
         }
@@ -134,7 +134,7 @@ module.exports = function(app) {
             res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
             return;
         }
-        db.query(`SELECT email FROM user WHERE email = ? AND id != ?`, [email, userId], (err, result) => {
+        db.query(`SELECT email FROM user WHERE email = ? AND id != ?`, [email, userId], (result) => {
             if (result.length > 0) {
                 res.status(400).send(JSON.stringify({ msg: 'Account already exists' }, null, 2) + '\n');
                 return;
@@ -172,7 +172,7 @@ module.exports = function(app) {
     });
 
     app.delete('/user/:id', async (req, res) => {
-        const userId = await idFromToken(req.headers.authorization, res);
+        const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
         }
@@ -181,7 +181,7 @@ module.exports = function(app) {
             return;
         }
         const query = `DELETE FROM user WHERE id = ?`;
-        db.query(query, [userId], (err) => {
+        db.query(query, [userId], () => {
             res.status(200).send(JSON.stringify({ msg: `Successfully deleted record number : ${userId}` }, null, 2) + '\n');
         });
     });

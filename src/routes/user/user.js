@@ -1,48 +1,32 @@
-const express = require('express');
-const app = express();
 const jwt = require('jsonwebtoken');
-const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
-
-const db = mysql.createConnection({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    database: process.env.MYSQL_DATABASE,
-    password: process.env.MYSQL_ROOT_PASSWORD
-});
+const authenticateMiddleware = require('../../middleware/auth.js');
+const createDBConnection = require('../../config/db.js');
+const db = createDBConnection();
+const userQuerys = require('./user.query.js');
 
 function UserIdFromToken(authHeader, res) {
-    if (!authHeader) {
-        res.status(401).send(JSON.stringify({ msg: 'No token, authorization denied' }, null, 2) + '\n');
-        return;
-    }
     return new Promise((resolve) => {
-        try {
-            const token = authHeader.split(' ')[1];
-            jwt.verify(token, process.env.SECRET);
-            const userEmail = jwt.decode(token, process.env.SECRET);
-            const query = `SELECT id FROM user WHERE email = ?`;
-            db.query(query, [userEmail], (err, result) => {
-                if (err || result.length === 0) {
-                    res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
-                } else {
-                    resolve(result[0].id);
-                }
-            });
-        } catch (err) {
-            res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
-        }
+        const token = authHeader.split(' ')[1];
+        const userEmail = jwt.decode(token, process.env.SECRET);
+        const query = `SELECT id FROM user WHERE email = ?`;
+        db.query(query, [userEmail], (err, result) => {
+            if (err || result.length === 0) {
+                res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
+            } else {
+                resolve(result[0].id);
+            }
+        });
     });
 }
 
 module.exports = function(app) {
-    app.get('/user', async (req, res) => {
+    app.get('/user', authenticateMiddleware, async (req, res) => {
         const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
         }
-        const query = `SELECT * FROM user`;
-        db.query(query, (err, result) => {
+        userQuerys.getAllUsers((err, result) => {
             if (err) {
                 res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
             } else {
@@ -64,13 +48,12 @@ module.exports = function(app) {
         });
     });
 
-    app.get('/user/todos', async (req, res) => {
+    app.get('/user/todos', authenticateMiddleware, async (req, res) => {
         const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
         }
-        const query = `SELECT * FROM todo WHERE user_id = ?`;
-        db.query(query, [userId], (err, result) => {
+        userQuerys.getTodosFromUser(userId, (err, result) => {
             if (err) {
                 res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
             } else {
@@ -90,16 +73,15 @@ module.exports = function(app) {
                 });
                 res.status(200).send(JSON.stringify(formattedResult, null, 2) + '\n');
             }
-        });
+        }, userId);
     });
 
-    app.get('/user/:data', async (req, res) => {
+    app.get('/user/:data', authenticateMiddleware, async (req, res) => {
         const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
         }
-        const query = `SELECT * FROM user WHERE id = ? OR email = ?`;
-        db.query(query, [req.params.data, req.params.data], (err, result) => {
+        userQuerys.getUserFromData(req.params.data, req.params.data, (err, result) => {
             if (err || result.length === 0) {
                 res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
             } else {
@@ -121,10 +103,10 @@ module.exports = function(app) {
                 };
                 res.status(200).send(JSON.stringify(formattedUser, null, 2) + '\n');
             }
-        });
+        }, req.params.data, req.params.data);
     });
 
-    app.put('/user/:id', async (req, res) => {
+    app.put('/user/:id', authenticateMiddleware, async (req, res) => {
         const { email, password, firstname, name } = req.body;
         const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
@@ -134,7 +116,7 @@ module.exports = function(app) {
             res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
             return;
         }
-        db.query(`SELECT email FROM user WHERE email = ? AND id != ?`, [email, userId], (result) => {
+        userQuerys.checkEmail((err, result) => {
             if (result.length > 0) {
                 res.status(400).send(JSON.stringify({ msg: 'Account already exists' }, null, 2) + '\n');
                 return;
@@ -145,9 +127,8 @@ module.exports = function(app) {
                     res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
                     return;
                 }
-                const query = `UPDATE user SET email = ?, password = ?, firstname = ?, name = ? WHERE id = ?`;
-                db.query(query, [email, hashedPassword, firstname, name, userId], () => {
-                    db.query(`SELECT * FROM user WHERE id = ?`, [userId], (err, result) => {
+                userQuerys.updateUser((err, result) => {
+                    userQuerys.getUserFromId(userId, (err, result) => {
                         if (err) {
                             res.status(400).send(JSON.stringify({ msg: 'Not found' }, null, 2) + '\n');
                         } else {
@@ -166,12 +147,12 @@ module.exports = function(app) {
                             res.status(200).send(JSON.stringify(formattedUser, null, 2) + '\n');
                         }
                     });
-                });
+                }, email, hashedPassword, firstname, name, userId);
             });
-        });
+        }, email, userId);
     });
 
-    app.delete('/user/:id', async (req, res) => {
+    app.delete('/user/:id', authenticateMiddleware, async (req, res) => {
         const userId = await UserIdFromToken(req.headers.authorization, res);
         if (!userId) {
             return;
@@ -180,8 +161,7 @@ module.exports = function(app) {
             res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
             return;
         }
-        const query = `DELETE FROM user WHERE id = ?`;
-        db.query(query, [userId], () => {
+        userQuerys.deleteUserFromId(userId, (err, result) => {
             res.status(200).send(JSON.stringify({ msg: `Successfully deleted record number : ${userId}` }, null, 2) + '\n');
         });
     });

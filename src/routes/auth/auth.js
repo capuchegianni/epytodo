@@ -1,16 +1,8 @@
-const express = require('express');
-const app = express()
-const mysql = require('mysql2');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-
-const db = mysql.createConnection({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    database: process.env.MYSQL_DATABASE,
-    password: process.env.MYSQL_ROOT_PASSWORD
-});
+const createDBConnection = require('../../config/db.js');
+const db = createDBConnection();
 
 module.exports = function(app) {
     app.post('/register', (req, res) => {

@@ -172,20 +172,15 @@ module.exports = function(app) {
                 }
                 db.query(`SELECT * FROM todo WHERE id = ?`, [req.params.id], (err, result) => {
                     const todo = result[0];
-                    const createdAt = new Date(todo.created_at);
-                    createdAt.setHours(createdAt.getHours() + 2);
-                    const formattedCreatedAt = createdAt.toISOString().replace('T', ' ').slice(0, 19);
                     const createdDt = new Date(todo.due_time);
                     createdDt.setHours(createdDt.getHours() + 2);
                     const formattedCreatedDt = createdDt.toISOString().replace('T', ' ').slice(0, 19);
                     const formattedTodo = {
-                        id: todo.id,
-                            title: todo.title,
-                            description: todo.description,
-                            createdAt: formattedCreatedAt,
-                            due_time: formattedCreatedDt,
-                            user_id: todo.user_id,
-                            status: todo.status
+                        title: todo.title,
+                        description: todo.description,
+                        due_time: formattedCreatedDt,
+                        user_id: todo.user_id,
+                        status: todo.status
                     };
                     res.status(200).send(JSON.stringify(formattedTodo, null, 2) + '\n');
                 });

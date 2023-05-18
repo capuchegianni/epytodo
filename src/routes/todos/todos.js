@@ -136,8 +136,46 @@ module.exports = function(app) {
         });
     });
 
-    app.post('/todos', (req, res) => {
-        res.send('Create a todo\n');
+    app.post('/todos', async (req, res) => {
+        const { title, description, due_time, user_id, status } = req.body;
+        const userId = await UserIdFromToken(req.headers.authorization, res);
+        if (!userId) {
+            return;
+        }
+        if (userId != user_id) {
+            res.status(401).send(JSON.stringify({ msg: 'Token is not valid' }, null, 2) + '\n');
+            return;
+        }
+        const query = `INSERT INTO todo (title, description, due_time, user_id, status) VALUES (?, ?, ?, ?, ?)`;
+        db.query(query, [title, description, due_time, userId, status], (err, new_id) => {
+            if (err) {
+                if (err.code === 'ER_TRUNCATED_WRONG_VALUE') {
+                    res.status(400).send(JSON.stringify({ msg: 'Bad parameter' }, null, 2) + '\n');
+                    return;
+                }
+                res.status(400).send(JSON.stringify({ msg: 'Internal sever error' }, null, 2) + '\n');
+                return;
+            }
+            db.query(`SELECT * FROM todo WHERE id = ?`, [new_id.insertId], (err, result) => {
+                const todo = result[0];
+                const createdAt = new Date(todo.created_at);
+                createdAt.setHours(createdAt.getHours() + 2);
+                const formattedCreatedAt = createdAt.toISOString().replace('T', ' ').slice(0, 19);
+                const createdDt = new Date(todo.due_time);
+                createdDt.setHours(createdDt.getHours() + 2);
+                const formattedCreatedDt = createdDt.toISOString().replace('T', ' ').slice(0, 19);
+                const formattedTodo = {
+                    id: todo.id,
+                    title: todo.title,
+                    description: todo.description,
+                    createdAt: formattedCreatedAt,
+                    due_time: formattedCreatedDt,
+                    user_id: todo.user_id,
+                    status: todo.status
+                };
+                res.status(200).send(JSON.stringify(formattedTodo, null, 2) + '\n');
+            });
+        });
     });
 
     app.put('/todos/:id', async (req, res) => {

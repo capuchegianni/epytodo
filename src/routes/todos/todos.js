@@ -54,7 +54,7 @@ module.exports = function(app) {
                         id: todo.id,
                         title: todo.title,
                         description: todo.description,
-                        createdAt: formattedCreatedAt,
+                        created_at: formattedCreatedAt,
                         due_time: todo.due_time,
                         user_id: todo.user_id,
                         status: todo.status

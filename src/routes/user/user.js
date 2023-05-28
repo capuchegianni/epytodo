@@ -38,7 +38,7 @@ module.exports = function(app) {
                         id: user.id,
                         email: user.email,
                         password: user.password,
-                        createdAt: formattedCreatedAt,
+                        created_at: formattedCreatedAt,
                         firstname: user.firstname,
                         name: user.name
                     };

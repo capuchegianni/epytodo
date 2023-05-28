@@ -10,7 +10,7 @@ module.exports = function(app) {
         const checkQuery = `SELECT * FROM user WHERE email = ?`;
         db.query(checkQuery, [email], (checkErr, checkResult) => {
             if (checkErr) {
-                res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
+                res.status(400).send(JSON.stringify({ msg: 'Bad parameter' }, null, 2) + '\n');
                 return;
             }
             if (checkResult.length > 0) {
@@ -20,7 +20,7 @@ module.exports = function(app) {
             const saltRounds = 10;
             bcrypt.hash(password, saltRounds, (hashErr, hashedPassword) => {
                 if (hashErr) {
-                    res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
+                    res.status(400).send(JSON.stringify({ msg: 'Bad parameter' }, null, 2) + '\n');
                     return;
                 }
                 const insertQuery = `INSERT INTO user (email, password, name, firstname) VALUES (?, ?, ?, ?)`;
@@ -43,7 +43,7 @@ module.exports = function(app) {
         const checkQuery = `SELECT * FROM user WHERE email = ?`;
         db.query(checkQuery, [email], (checkErr, checkResult) => {
             if (checkErr) {
-                res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
+                res.status(400).send(JSON.stringify({ msg: 'Bad parameter' }, null, 2) + '\n');
                 return;
             }
             if (checkResult.length === 0) {
@@ -53,7 +53,7 @@ module.exports = function(app) {
             const hashedPassword = checkResult[0].password;
             bcrypt.compare(password, hashedPassword, (compareErr, compareResult) => {
                 if (compareErr) {
-                    res.status(500).send(JSON.stringify({ msg: 'Internal server error' }, null, 2) + '\n');
+                    res.status(400).send(JSON.stringify({ msg: 'Bad parameter' }, null, 2) + '\n');
                     return;
                 }
                 if (!compareResult) {

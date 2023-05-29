@@ -44,7 +44,35 @@ Here is why we didn't get all the points:
 
 ## 🤖 Testing the program <a name="tests"></a>
 
-Coming soon...
+First of all, you have to install `npm`, `Node`, `curl` and `mysql` on your computer.
+
+You will have to create a new database. To do so, you must access the mysql terminal with the `sudo mysql -u root -p` command (you can also create a new user with better permissions to avoid using sudo)
+I'll let you find out how to create new tables by yourself.
+
+Now lets go into the repository. To install required dependencies do `npm i`.
+Now you will have to fill the **.env** file at the root of the repository with different informations:
+- **MYSQL_DATABASE** is the name of your db
+- **MYSQL_HOST** is localhost
+- **MYSQL_USER** is your username (should be root or an user your created earlier)
+- **MYSQL_ROOT_PASSWORD** is the password you need to access your user db
+- **SECRET** is a passphrase that you will need to use and remember of when you will create new tokens
+
+⚠️ **The content of this file must not be pushed into a repository** ⚠️
+
+Finally, you can start the server with `node .` or `node src/index.js` commands and interact with it by using curl as the following:
+```bash
+curl -X GET localhost:3000/
+```
+
+If you want to use any other route, you will need to use -H flag to include new informations as a `Content-Type` or an `Authentification`.<br>For example you can do:
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{
+  "email": "user6@example.com",
+  "name": "John Doe",
+  "firstname": "John",
+  "password": "password123"
+}' localhost:3000/register
+```
 
 ## 📆 Conclusion <a name="conclusion"></a>
 

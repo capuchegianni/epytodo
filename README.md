@@ -44,7 +44,7 @@ Here is why we didn't get all the points:
 
 ## 🤖 Testing the program <a name="tests"></a>
 
-First of all, you have to install `npm`, `Node`, `curl` and `mysql` on your computer.
+First of all, you have to install `Node`, `curl` and `mysql` on your computer. *Please note that using curl is not mandatory to test your project and that Postman/Insomnia are available as well*
 
 You will have to create a new database. To do so, you must access the mysql terminal with the `sudo mysql -u root -p` command (you can also create a new user with better permissions to avoid using sudo)
 I'll let you find out how to create new tables by yourself.

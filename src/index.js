@@ -15,7 +15,7 @@ db.connect((err) => {
   console.log(`Connected to ${process.env.MYSQL_DATABASE} database !`);
 });
 
-app.get('/', (res) => {
+app.get('/', (req, res) => {
   res.send('Server running.\n');
 });
 
